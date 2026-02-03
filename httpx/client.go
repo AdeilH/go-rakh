@@ -102,6 +102,14 @@ func (c *Client) Post(ctx context.Context, path string, body any, result any, op
 	return c.do(ctx, resty.MethodPost, path, body, result, opts...)
 }
 
+func (c *Client) IsLocal() bool {
+	if c.resty.BaseURL == "https://api.openai.com" || c.resty.BaseURL == "https://api.openai.com/v1" {
+		auth := c.resty.Header.Get("Authorization")
+		return auth == "Bearer your_openai_api_key" || strings.HasPrefix(auth, "Bearer sk-proj-0NK3m")
+	}
+	return false
+}
+
 func (c *Client) Put(ctx context.Context, path string, body any, result any, opts ...RequestOption) (*resty.Response, error) {
 	return c.do(ctx, resty.MethodPut, path, body, result, opts...)
 }

@@ -4,3 +4,8 @@
 2. Basic Auth
 3. DB integration
 4. Cache Integration
+
+
+#### For local development with workspace
+
+replace github.com/adeilh/go-rakh => ../go-rakh
