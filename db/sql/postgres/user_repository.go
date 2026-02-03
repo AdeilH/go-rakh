@@ -22,23 +22,23 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) CreateUser(ctx context.Context, user auth.User) error {
-	const query = `INSERT INTO users (id, email, password_hash, metadata, enabled, created_at, updated_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	const query = `INSERT INTO users (id, email, name, title, password_hash, metadata, enabled, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	hashJSON, metadataJSON, err := marshalUserFields(user)
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, query, user.ID, user.Email, hashJSON, metadataJSON, user.Enabled, user.CreatedAt, user.UpdatedAt)
+	_, err = r.db.ExecContext(ctx, query, user.ID, user.Email, user.Name, user.Title, hashJSON, metadataJSON, user.Enabled, user.CreatedAt, user.UpdatedAt)
 	return translateUserError(err)
 }
 
 func (r *UserRepository) UpdateUser(ctx context.Context, user auth.User) error {
-	const query = `UPDATE users SET email = $2, password_hash = $3, metadata = $4, enabled = $5, updated_at = $6 WHERE id = $1`
+	const query = `UPDATE users SET email = $2, name = $3, title = $4, password_hash = $5, metadata = $6, enabled = $7, updated_at = $8 WHERE id = $1`
 	hashJSON, metadataJSON, err := marshalUserFields(user)
 	if err != nil {
 		return err
 	}
-	res, err := r.db.ExecContext(ctx, query, user.ID, user.Email, hashJSON, metadataJSON, user.Enabled, user.UpdatedAt)
+	res, err := r.db.ExecContext(ctx, query, user.ID, user.Email, user.Name, user.Title, hashJSON, metadataJSON, user.Enabled, user.UpdatedAt)
 	if err != nil {
 		return translateUserError(err)
 	}
@@ -60,6 +60,12 @@ func (r *UserRepository) UpdateUserPartial(ctx context.Context, userID string, p
 	}
 	if patch.PasswordHash != nil {
 		existing.PasswordHash = *patch.PasswordHash
+	}
+	if patch.Name != nil {
+		existing.Name = *patch.Name
+	}
+	if patch.Title != nil {
+		existing.Title = *patch.Title
 	}
 	if patch.Metadata != nil {
 		if existing.Metadata == nil {
@@ -105,7 +111,7 @@ func (r *UserRepository) toggleDisable(ctx context.Context, userID string, disab
 }
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (auth.User, error) {
-	const query = `SELECT id, email, password_hash, metadata, enabled, created_at, updated_at FROM users WHERE email = $1`
+	const query = `SELECT id, email, name, title, password_hash, metadata, enabled, created_at, updated_at FROM users WHERE email = $1`
 	var (
 		hashJSON     []byte
 		metadataJSON []byte
@@ -114,6 +120,8 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (auth
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
+		&user.Name,
+		&user.Title,
 		&hashJSON,
 		&metadataJSON,
 		&user.Enabled,
@@ -138,7 +146,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (auth
 }
 
 func (r *UserRepository) getUserByID(ctx context.Context, id string) (auth.User, error) {
-	const query = `SELECT id, email, password_hash, metadata, enabled, created_at, updated_at FROM users WHERE id = $1`
+	const query = `SELECT id, email, name, title, password_hash, metadata, enabled, created_at, updated_at FROM users WHERE id = $1`
 	var (
 		hashJSON     []byte
 		metadataJSON []byte
@@ -147,6 +155,8 @@ func (r *UserRepository) getUserByID(ctx context.Context, id string) (auth.User,
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
+		&user.Name,
+		&user.Title,
 		&hashJSON,
 		&metadataJSON,
 		&user.Enabled,

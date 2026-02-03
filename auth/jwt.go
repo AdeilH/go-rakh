@@ -28,7 +28,13 @@ var (
 	ErrJWTRevoked           = errors.New("auth: jwt revoked")
 	ErrJWTInvalidClaims     = errors.New("auth: invalid jwt claims")
 	ErrJWTMissingSigningKey = errors.New("auth: missing signing key")
+	ErrJWTWeakSigningKey    = errors.New("auth: signing key too short")
+	ErrJWTInvalidIssuer     = errors.New("auth: invalid jwt issuer")
+	ErrJWTInvalidAudience   = errors.New("auth: invalid jwt audience")
 )
+
+// MinSecretLength is the minimum recommended secret length for HMAC-SHA256
+const MinSecretLength = 32
 
 const defaultJWTCachePrefix = "jwt"
 
@@ -64,18 +70,22 @@ type jwtPayload struct {
 
 // HMACJWTProvider implements JWTTokenProvider using HMAC signing.
 type HMACJWTProvider struct {
-	secret      []byte
-	allowedAlgs map[string]struct{}
-	defaultAlg  string
-	leeway      time.Duration
-	now         func() time.Time
-	revoked     sync.Map
-	store       cache.Store
-	cachePrefix string
+	secret           []byte
+	allowedAlgs      map[string]struct{}
+	defaultAlg       string
+	leeway           time.Duration
+	now              func() time.Time
+	revoked          sync.Map
+	store            cache.Store
+	cachePrefix      string
+	requiredIssuer   string
+	requiredAudience []string
+	enforceSecretLen bool
 }
 
 // NewHMACJWTProvider creates an HMAC based JWT provider that only relies on the
 // standard library. Algorithms defaults to HS256 when none are supplied.
+// For production use, secrets should be at least 32 bytes (256 bits).
 func NewHMACJWTProvider(secret []byte, algorithms ...string) (*HMACJWTProvider, error) {
 	if len(secret) == 0 {
 		return nil, ErrJWTMissingSigningKey
@@ -93,13 +103,58 @@ func NewHMACJWTProvider(secret []byte, algorithms ...string) (*HMACJWTProvider, 
 	}
 
 	return &HMACJWTProvider{
-		secret:      append([]byte(nil), secret...),
-		allowedAlgs: allowed,
-		defaultAlg:  algorithms[0],
-		leeway:      30 * time.Second,
-		now:         time.Now,
-		cachePrefix: defaultJWTCachePrefix,
+		secret:           append([]byte(nil), secret...),
+		allowedAlgs:      allowed,
+		defaultAlg:       algorithms[0],
+		leeway:           30 * time.Second,
+		now:              time.Now,
+		cachePrefix:      defaultJWTCachePrefix,
+		enforceSecretLen: false,
 	}, nil
+}
+
+// NewSecureHMACJWTProvider creates an HMAC based JWT provider with enforced security.
+// It requires a minimum secret length of 32 bytes for HS256, 48 for HS384, 64 for HS512.
+func NewSecureHMACJWTProvider(secret []byte, algorithms ...string) (*HMACJWTProvider, error) {
+	if len(algorithms) == 0 {
+		algorithms = []string{"HS256"}
+	}
+
+	// Determine minimum required secret length based on algorithm
+	minLen := MinSecretLength
+	for _, alg := range algorithms {
+		switch alg {
+		case "HS384":
+			if minLen < 48 {
+				minLen = 48
+			}
+		case "HS512":
+			if minLen < 64 {
+				minLen = 64
+			}
+		}
+	}
+
+	if len(secret) < minLen {
+		return nil, fmt.Errorf("%w: need at least %d bytes", ErrJWTWeakSigningKey, minLen)
+	}
+
+	provider, err := NewHMACJWTProvider(secret, algorithms...)
+	if err != nil {
+		return nil, err
+	}
+	provider.enforceSecretLen = true
+	return provider, nil
+}
+
+// SetRequiredIssuer enforces issuer validation during token parsing.
+func (p *HMACJWTProvider) SetRequiredIssuer(issuer string) {
+	p.requiredIssuer = issuer
+}
+
+// SetRequiredAudience enforces audience validation during token parsing.
+func (p *HMACJWTProvider) SetRequiredAudience(audience ...string) {
+	p.requiredAudience = cloneStrings(audience)
 }
 
 // SetLeeway overrides the default expiration leeway used during validation.
@@ -288,7 +343,36 @@ func (p *HMACJWTProvider) validateClaims(claims JWTClaims) error {
 		return ErrJWTNotYetValid
 	}
 
+	// Validate required issuer if configured
+	if p.requiredIssuer != "" && claims.Issuer != p.requiredIssuer {
+		return ErrJWTInvalidIssuer
+	}
+
+	// Validate required audience if configured
+	if len(p.requiredAudience) > 0 {
+		if !hasAudienceMatch(claims.Audience, p.requiredAudience) {
+			return ErrJWTInvalidAudience
+		}
+	}
+
 	return nil
+}
+
+// hasAudienceMatch checks if at least one of the required audiences is present in the token
+func hasAudienceMatch(tokenAud, requiredAud []string) bool {
+	if len(tokenAud) == 0 || len(requiredAud) == 0 {
+		return false
+	}
+	audSet := make(map[string]struct{}, len(tokenAud))
+	for _, a := range tokenAud {
+		audSet[a] = struct{}{}
+	}
+	for _, req := range requiredAud {
+		if _, ok := audSet[req]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *HMACJWTProvider) resolveAlgorithm(requested string) (string, error) {

@@ -18,6 +18,8 @@ var (
 type User struct {
 	ID           string
 	Email        string
+	Name         string
+	Title        string
 	PasswordHash PasswordHash
 	Metadata     map[string]string
 	Enabled      bool
@@ -186,6 +188,8 @@ func (s *UserService) EnableUser(ctx context.Context, userID string) (User, erro
 // UserPatch allows partial updates without requiring all fields.
 type UserPatch struct {
 	Email        *string
+	Name         *string
+	Title        *string
 	PasswordHash *PasswordHash
 	Metadata     map[string]string
 	Enabled      *bool
@@ -195,6 +199,8 @@ type UserPatch struct {
 const DefaultUserTableSchema = `CREATE TABLE users (
     id UUID PRIMARY KEY,
     email CITEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    title TEXT NOT NULL,
     password_hash JSONB NOT NULL,
     metadata JSONB,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,

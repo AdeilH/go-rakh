@@ -34,6 +34,8 @@ func TestUserRepositoryCRUD(t *testing.T) {
 	user := auth.User{
 		ID:    "11111111-1111-1111-1111-111111111111",
 		Email: "test@example.com",
+		Name:  "Test User",
+		Title: "Ms",
 		PasswordHash: auth.PasswordHash{
 			Algorithm: "bcrypt",
 			Cost:      10,
