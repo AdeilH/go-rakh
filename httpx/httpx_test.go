@@ -11,8 +11,8 @@ import (
 
 func TestServerAndClientRoundTrip(t *testing.T) {
 	server := NewServer()
-	server.RegisterRoutes(func(e *Echo) {
-		e.GET("/ping", func(c Context) error {
+	server.RegisterRoutes(func(a *App) {
+		a.GET("/ping", func(c Context) error {
 			return c.JSON(StatusOK, map[string]string{"message": "pong"})
 		})
 	})
@@ -39,8 +39,8 @@ func TestServerAndClientRoundTrip(t *testing.T) {
 
 func TestErrorHandlerWrapsEchoHTTPError(t *testing.T) {
 	server := NewServer()
-	server.RegisterRoutes(func(e *Echo) {
-		e.GET("/fail", func(c Context) error {
+	server.RegisterRoutes(func(a *App) {
+		a.GET("/fail", func(c Context) error {
 			return HTTPError(StatusBadRequest, "bad request")
 		})
 	})
@@ -70,8 +70,8 @@ func TestAuthMiddlewareBridge(t *testing.T) {
 	}
 
 	server := NewServer(WithMiddlewares(AuthMiddleware(mw)))
-	server.RegisterRoutes(func(e *Echo) {
-		e.GET("/secure", func(c Context) error {
+	server.RegisterRoutes(func(a *App) {
+		a.GET("/secure", func(c Context) error {
 			token, ok := auth.TokenFromContext(c.Request().Context())
 			if !ok || token.Raw() != "signed" {
 				return HTTPError(StatusUnauthorized, "missing token")
@@ -102,8 +102,8 @@ func TestValidatorMiddleware(t *testing.T) {
 		return nil
 	}
 	server := NewServer(WithValidators(validator))
-	server.RegisterRoutes(func(e *Echo) {
-		e.GET("/secure", func(c Context) error { return c.NoContent(StatusOK) })
+	server.RegisterRoutes(func(a *App) {
+		a.GET("/secure", func(c Context) error { return c.NoContent(StatusOK) })
 	})
 
 	ts := NewTestServer(server.Handler())
@@ -127,21 +127,15 @@ func TestValidatorMiddleware(t *testing.T) {
 }
 
 func TestCORSAndLoggerInjection(t *testing.T) {
-	logger := NewEcho().Logger
 	corsCfg := DefaultCORSConfig
 	corsCfg.AllowOrigins = []string{"http://example.com"}
-	server := NewServer(WithLogger(logger), WithCORS(&corsCfg))
-	server.RegisterRoutes(func(e *Echo) {
-		e.GET("/ping", func(c Context) error { return c.NoContent(StatusOK) })
+	server := NewServer(WithCORS(&corsCfg))
+	server.RegisterRoutes(func(a *App) {
+		a.GET("/ping", func(c Context) error { return c.NoContent(StatusOK) })
 	})
 
 	ts := NewTestServer(server.Handler())
 	defer ts.Close()
-
-	// ensure logger was set
-	if server.echo.Logger != logger {
-		t.Fatalf("expected custom logger to be set")
-	}
 
 	client := NewClient(WithBaseURL(ts.BaseURL()))
 	resp, err := client.Get(context.Background(), "/ping", nil, WithRequestHeaders(map[string]string{
@@ -158,8 +152,8 @@ func TestCORSAndLoggerInjection(t *testing.T) {
 
 func TestRouterHelpers(t *testing.T) {
 	server := NewServer()
-	server.RegisterRoutes(func(e *Echo) {
-		r := NewRouter(e, "/api")
+	server.RegisterRoutes(func(a *App) {
+		r := NewRouter(a, "/api")
 		r.GET("/ping", func(c Context) error { return c.JSON(StatusOK, map[string]string{"message": "pong"}) })
 	})
 
@@ -182,8 +176,8 @@ func TestRouterHelpers(t *testing.T) {
 
 func TestRegisterRoutesBulkAndPostBody(t *testing.T) {
 	server := NewServer()
-	server.RegisterRoutes(func(e *Echo) {
-		RegisterRoutes(e,
+	server.RegisterRoutes(func(a *App) {
+		RegisterRoutes(a,
 			Route{Method: "GET", Path: "/r1", Handler: func(c Context) error {
 				return c.JSON(StatusOK, map[string]string{"route": "r1"})
 			}},
@@ -226,8 +220,8 @@ func TestRegisterRoutesBulkAndPostBody(t *testing.T) {
 
 func TestClientRequestOptions(t *testing.T) {
 	server := NewServer()
-	server.RegisterRoutes(func(e *Echo) {
-		e.GET("/opts", func(c Context) error {
+	server.RegisterRoutes(func(a *App) {
+		a.GET("/opts", func(c Context) error {
 			authz := c.Request().Header.Get("Authorization")
 			custom := c.Request().Header.Get("X-Custom")
 			qp := c.QueryParam("q")
@@ -259,8 +253,8 @@ func TestClientRequestOptions(t *testing.T) {
 
 func TestClientRestyConfigHook(t *testing.T) {
 	server := NewServer()
-	server.RegisterRoutes(func(e *Echo) {
-		e.GET("/config", func(c Context) error {
+	server.RegisterRoutes(func(a *App) {
+		a.GET("/config", func(c Context) error {
 			return c.JSON(StatusOK, map[string]string{"cfg": c.Request().Header.Get("X-Config")})
 		})
 	})

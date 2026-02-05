@@ -21,10 +21,10 @@ func (ts *TestServer) BaseURL() string {
 	return ts.URL
 }
 
-// NewEchoTestServer starts a TestServer from an httpx Echo instance.
-func NewEchoTestServer(e *Echo) *TestServer {
-	if e == nil {
+// NewTestServerFromApp starts a TestServer from an httpx App instance.
+func NewTestServerFromApp(a *App) *TestServer {
+	if a == nil {
 		return nil
 	}
-	return &TestServer{httptest.NewServer(e.Echo)}
+	return &TestServer{httptest.NewServer(a.e)}
 }

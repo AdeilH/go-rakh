@@ -191,11 +191,11 @@ func TestTokenFromContextWrongType(t *testing.T) {
 
 func TestMiddlewarePathBasedSkipper(t *testing.T) {
 	parser := &fakeParser{token: stubToken{raw: "token"}}
-
+	
 	skipper := func(r *http.Request) bool {
 		return r.URL.Path == "/health" || r.URL.Path == "/metrics"
 	}
-
+	
 	middleware, _ := NewMiddleware(parser, WithSkipper(skipper))
 
 	tests := []struct {
@@ -232,11 +232,11 @@ func TestMiddlewarePathBasedSkipper(t *testing.T) {
 
 func TestMiddlewareMethodBasedSkipper(t *testing.T) {
 	parser := &fakeParser{token: stubToken{raw: "token"}}
-
+	
 	skipper := func(r *http.Request) bool {
 		return r.Method == http.MethodOptions
 	}
-
+	
 	middleware, _ := NewMiddleware(parser, WithSkipper(skipper))
 
 	tests := []struct {
@@ -327,10 +327,10 @@ func TestMiddlewareContextPropagation(t *testing.T) {
 	parser := &fakeParser{token: stubToken{
 		raw: "token",
 		claims: JWTClaims{
-			ID:       "token-id-123",
-			Subject:  "user-456",
-			Issuer:   "test-issuer",
-			Metadata: map[string]any{"role": "admin"},
+			ID:        "token-id-123",
+			Subject:   "user-456",
+			Issuer:    "test-issuer",
+			Metadata:  map[string]any{"role": "admin"},
 		},
 	}}
 	middleware, _ := NewMiddleware(parser)

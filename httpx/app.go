@@ -29,10 +29,10 @@ func (a *App) Group(prefix string, mw ...MiddlewareFunc) *Router {
 	return &Router{group: &group{g: a.e.Group(prefix, mw...)}}
 }
 
-// RecoverMiddleware returns Echo's recover middleware.
+// RecoverMiddleware returns a middleware that recovers from panics.
 func RecoverMiddleware() MiddlewareFunc { return middleware.Recover() }
 
-// LoggerMiddleware returns Echo's logger middleware.
+// LoggerMiddleware returns a middleware that logs HTTP requests.
 func LoggerMiddleware() MiddlewareFunc { return middleware.Logger() }
 
 // CORSMiddleware builds a CORS middleware from the provided config; nil uses defaults.
@@ -68,8 +68,8 @@ func (a *App) PATCH(path string, h HandlerFunc, mw ...MiddlewareFunc) {
 	a.e.PATCH(path, h, mw...)
 }
 
-// HTTPError constructs an HTTPError without importing echo in callers.
+// HTTPError constructs an HTTP error for returning from handlers.
 func HTTPError(code int, message any) error { return &httpError{Code: code, Message: message} }
 
-// DefaultCORSConfig mirrors echo's default CORS configuration.
+// DefaultCORSConfig provides the default CORS configuration.
 var DefaultCORSConfig = middleware.DefaultCORSConfig

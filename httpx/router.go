@@ -14,30 +14,39 @@ type Route struct {
 	Middleware []MiddlewareFunc
 }
 
-// RegisterRoutes applies a list of Route definitions to the Echo instance.
-func RegisterRoutes(e *Echo, routes ...Route) {
-	if e == nil || e.Echo == nil {
+// RegisterRoutes applies a list of Route definitions to the App instance.
+func RegisterRoutes(a *App, routes ...Route) {
+	if a == nil || a.e == nil {
 		return
 	}
 	for _, r := range routes {
 		if r.Handler == nil || r.Path == "" || r.Method == "" {
 			continue
 		}
-		e.Echo.Add(strings.ToUpper(r.Method), r.Path, r.Handler, r.Middleware...)
+		a.e.Add(strings.ToUpper(r.Method), r.Path, r.Handler, r.Middleware...)
 	}
 }
 
-// Router wraps an Echo group to provide chainable helpers for common verbs.
+// group is an internal wrapper for route grouping
+type group struct {
+	g *echo.Group
+}
+
+func (a *App) newGroup(prefix string, mw ...MiddlewareFunc) *group {
+	return &group{g: a.e.Group(prefix, mw...)}
+}
+
+// Router wraps an internal group to provide chainable helpers for common verbs.
 type Router struct {
-	group *echo.Group
+	group *group
 }
 
 // NewRouter creates a router under an optional prefix with optional middleware.
-func NewRouter(e *Echo, prefix string, mw ...MiddlewareFunc) *Router {
-	if e == nil || e.Echo == nil {
+func NewRouter(a *App, prefix string, mw ...MiddlewareFunc) *Router {
+	if a == nil || a.e == nil {
 		return &Router{}
 	}
-	return &Router{group: e.Group(prefix, mw...)}
+	return &Router{group: a.newGroup(prefix, mw...)}
 }
 
 func (r *Router) GET(path string, h HandlerFunc, mw ...MiddlewareFunc) *Router {
@@ -61,8 +70,8 @@ func (r *Router) DELETE(path string, h HandlerFunc, mw ...MiddlewareFunc) *Route
 }
 
 func (r *Router) add(method, path string, h HandlerFunc, mw ...MiddlewareFunc) {
-	if r.group == nil || h == nil || path == "" {
+	if r.group == nil || r.group.g == nil || h == nil || path == "" {
 		return
 	}
-	r.group.Add(method, path, h, mw...)
+	r.group.g.Add(method, path, h, mw...)
 }

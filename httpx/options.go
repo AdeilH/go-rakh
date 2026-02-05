@@ -3,19 +3,20 @@ package httpx
 import (
 	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
+
+// HTTPErrorHandler is a function that handles errors during request processing.
+type HTTPErrorHandler func(error, Context)
 
 type ServerOptions struct {
 	Address      string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	Middlewares  []MiddlewareFunc
-	ErrorHandler echo.HTTPErrorHandler
+	ErrorHandler HTTPErrorHandler
 	Validators   []Validator
 	CORS         *middleware.CORSConfig
-	Logger       echo.Logger
 }
 
 type ServerOption func(*ServerOptions)
@@ -66,7 +67,7 @@ func AppendMiddlewares(mw ...MiddlewareFunc) ServerOption {
 	}
 }
 
-func WithErrorHandler(handler echo.HTTPErrorHandler) ServerOption {
+func WithErrorHandler(handler HTTPErrorHandler) ServerOption {
 	return func(o *ServerOptions) {
 		if handler != nil {
 			o.ErrorHandler = handler
@@ -92,15 +93,6 @@ func WithCORS(cfg *middleware.CORSConfig) ServerOption {
 			return
 		}
 		o.CORS = cfg
-	}
-}
-
-// WithLogger injects a custom Echo logger.
-func WithLogger(logger echo.Logger) ServerOption {
-	return func(o *ServerOptions) {
-		if logger != nil {
-			o.Logger = logger
-		}
 	}
 }
 

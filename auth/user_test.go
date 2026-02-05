@@ -159,12 +159,9 @@ func (r *mockUserRepository) getUser(id string) (User, bool) {
 }
 
 type mockPasswordResetSender struct {
-	mu   sync.Mutex
-	sent []struct {
-		user  User
-		token string
-	}
-	err error
+	mu       sync.Mutex
+	sent     []struct{ user User; token string }
+	err      error
 }
 
 func newMockPasswordResetSender() *mockPasswordResetSender {
@@ -179,10 +176,7 @@ func (s *mockPasswordResetSender) SendResetToken(ctx context.Context, user User,
 		return s.err
 	}
 
-	s.sent = append(s.sent, struct {
-		user  User
-		token string
-	}{user, token})
+	s.sent = append(s.sent, struct{ user User; token string }{user, token})
 	return nil
 }
 
@@ -192,16 +186,10 @@ func (s *mockPasswordResetSender) setError(err error) {
 	s.mu.Unlock()
 }
 
-func (s *mockPasswordResetSender) getSent() []struct {
-	user  User
-	token string
-} {
+func (s *mockPasswordResetSender) getSent() []struct{ user User; token string } {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return append([]struct {
-		user  User
-		token string
-	}{}, s.sent...)
+	return append([]struct{ user User; token string }{}, s.sent...)
 }
 
 // Tests
@@ -398,7 +386,7 @@ func TestUserService_UpdateUserPartial(t *testing.T) {
 		svc, _ := NewUserService(UserServiceConfig{Repository: repo, Hasher: hasher})
 
 		user, _ := svc.CreateUser(ctx, "test@example.com", []byte("password"), nil)
-
+		
 		newName := "New Name"
 		updated, err := svc.UpdateUserPartial(ctx, user.ID, UserPatch{Name: &newName}, nil)
 		if err != nil {
@@ -627,7 +615,7 @@ func TestCloneUserMetadata(t *testing.T) {
 	t.Run("with data", func(t *testing.T) {
 		input := map[string]string{"key": "value"}
 		result := cloneUserMetadata(input)
-
+		
 		if result["key"] != "value" {
 			t.Error("Clone should preserve data")
 		}
