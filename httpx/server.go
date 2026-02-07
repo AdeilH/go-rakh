@@ -12,13 +12,13 @@ import (
 type Validator func(Context) error
 
 type Server struct {
-	echo     *Echo
+	app      *App
 	address  string
 	srv      *http.Server
 	shutdown time.Duration
 }
 
-type RouteRegistrar func(*Echo)
+type RouteRegistrar func(*App)
 
 type StartOption func(*Server)
 
@@ -38,27 +38,24 @@ func NewServer(opts ...ServerOption) *Server {
 		}
 	}
 
-	e := NewEcho()
-	e.HideBanner = true
-	e.HidePort = true
-	e.HTTPErrorHandler = cfg.ErrorHandler
-	if cfg.Logger != nil {
-		e.Logger = cfg.Logger
-	}
-	e.Server.ReadTimeout = cfg.ReadTimeout
-	e.Server.WriteTimeout = cfg.WriteTimeout
+	a := New()
+	a.e.HideBanner = true
+	a.e.HidePort = true
+	a.e.HTTPErrorHandler = wrapErrorHandler(cfg.ErrorHandler)
+	a.e.Server.ReadTimeout = cfg.ReadTimeout
+	a.e.Server.WriteTimeout = cfg.WriteTimeout
 	for _, mw := range cfg.Middlewares {
-		e.Use(mw)
+		a.Use(mw)
 	}
 	if cfg.CORS != nil {
-		e.Use(CORSMiddleware(cfg.CORS))
+		a.Use(CORSMiddleware(cfg.CORS))
 	}
 	if len(cfg.Validators) > 0 {
-		e.Use(validatorMiddleware(cfg.Validators...))
+		a.Use(validatorMiddleware(cfg.Validators...))
 	}
 
 	return &Server{
-		echo:     e,
+		app:      a,
 		address:  cfg.Address,
 		shutdown: 5 * time.Second,
 	}
@@ -66,12 +63,12 @@ func NewServer(opts ...ServerOption) *Server {
 
 func (s *Server) RegisterRoutes(reg RouteRegistrar) {
 	if reg != nil {
-		reg(s.echo)
+		reg(s.app)
 	}
 }
 
 func (s *Server) Handler() http.Handler {
-	return s.echo.Echo
+	return s.app.e
 }
 
 func (s *Server) Start(ctx context.Context, opts ...StartOption) error {
@@ -83,9 +80,9 @@ func (s *Server) Start(ctx context.Context, opts ...StartOption) error {
 
 	s.srv = &http.Server{
 		Addr:         s.address,
-		Handler:      s.echo.Echo,
-		ReadTimeout:  s.echo.Server.ReadTimeout,
-		WriteTimeout: s.echo.Server.WriteTimeout,
+		Handler:      s.app.e,
+		ReadTimeout:  s.app.e.Server.ReadTimeout,
+		WriteTimeout: s.app.e.Server.WriteTimeout,
 	}
 
 	errCh := make(chan error, 1)
@@ -107,10 +104,42 @@ func (s *Server) Start(ctx context.Context, opts ...StartOption) error {
 	}
 }
 
-func defaultHTTPErrorHandler(err error, c echo.Context) {
+// httpError is an internal error type
+type httpError struct {
+	Code    int
+	Message interface{}
+}
+
+func (e *httpError) Error() string {
+	if e.Message == nil {
+		return http.StatusText(e.Code)
+	}
+	if str, ok := e.Message.(string); ok {
+		return str
+	}
+	if err, ok := e.Message.(error); ok {
+		return err.Error()
+	}
+	return http.StatusText(e.Code)
+}
+
+func wrapErrorHandler(h HTTPErrorHandler) echo.HTTPErrorHandler {
+	return func(err error, c echo.Context) {
+		h(err, c)
+	}
+}
+
+func defaultHTTPErrorHandler(err error, c Context) {
 	code := StatusInternalError
 	msg := http.StatusText(code)
 	if he, ok := err.(*echo.HTTPError); ok {
+		code = he.Code
+		if str, ok := he.Message.(string); ok {
+			msg = str
+		} else if he.Message != nil {
+			msg = he.Message.(error).Error()
+		}
+	} else if he, ok := err.(*httpError); ok {
 		code = he.Code
 		if str, ok := he.Message.(string); ok {
 			msg = str

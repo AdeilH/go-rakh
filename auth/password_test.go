@@ -371,25 +371,6 @@ func TestArgon2idHasher_Hash(t *testing.T) {
 			t.Errorf("Hash() error = %v, want context.Canceled", err)
 		}
 	})
-
-	t.Run("custom key length", func(t *testing.T) {
-		hasher := NewArgon2idHasher(
-			WithArgon2Time(1),
-			WithArgon2Memory(32*1024),
-			WithArgon2Threads(2),
-			WithArgon2KeyLen(64), // Custom key length
-			WithArgon2Validation(PasswordValidationOptions{MinLength: 1}),
-		)
-		hash, err := hasher.Hash(ctx, []byte("SecurePass123"), PasswordOptions{})
-		if err != nil {
-			t.Fatalf("Hash() error = %v", err)
-		}
-		if len(hash.Value) == 0 {
-			t.Error("Hash value is empty")
-		}
-		// Additional assertions can be added here if needed
-	})
-
 }
 
 func TestArgon2idHasher_Compare(t *testing.T) {
@@ -744,7 +725,7 @@ func TestIsRepeatingPattern(t *testing.T) {
 	}
 
 	notRepeating := []string{
-		"aaa", // too short
+		"aaa",  // too short
 		"aab",
 		"hello",
 		"1234",

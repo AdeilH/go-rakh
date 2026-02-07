@@ -12,10 +12,10 @@ func TestBearerTokenExtractor(t *testing.T) {
 	extractor := BearerTokenExtractor()
 
 	tests := []struct {
-		name      string
-		header    string
-		wantToken string
-		wantErr   error
+		name       string
+		header     string
+		wantToken  string
+		wantErr    error
 	}{
 		{
 			name:      "valid bearer token",

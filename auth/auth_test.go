@@ -415,7 +415,7 @@ func TestJWTAlgorithmConfusion(t *testing.T) {
 
 	t.Run("cross-algorithm token rejected", func(t *testing.T) {
 		secret := []byte("test-secret-key-64-bytes-long-for-hs512-algorithm-requirement!!!")
-
+		
 		provider256, _ := NewHMACJWTProvider(secret, "HS256")
 		provider512, _ := NewHMACJWTProvider(secret, "HS512")
 

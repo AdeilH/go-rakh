@@ -36,6 +36,7 @@ var (
 // MinSecretLength is the minimum recommended secret length for HMAC-SHA256
 const MinSecretLength = 32
 
+
 const defaultJWTCachePrefix = "jwt"
 
 type jwtToken struct {
@@ -70,15 +71,15 @@ type jwtPayload struct {
 
 // HMACJWTProvider implements JWTTokenProvider using HMAC signing.
 type HMACJWTProvider struct {
-	secret           []byte
-	allowedAlgs      map[string]struct{}
-	defaultAlg       string
-	leeway           time.Duration
-	now              func() time.Time
-	revoked          sync.Map
-	store            cache.Store
-	cachePrefix      string
-	requiredIssuer   string
+	secret          []byte
+	allowedAlgs     map[string]struct{}
+	defaultAlg      string
+	leeway          time.Duration
+	now             func() time.Time
+	revoked         sync.Map
+	store           cache.Store
+	cachePrefix     string
+	requiredIssuer  string
 	requiredAudience []string
 	enforceSecretLen bool
 }
